@@ -1,17 +1,16 @@
 import DemoHeader from "@/components/DemoHeader";
 import DemoRelationList from "@/components/DemoRelationList";
 import { Box, Tabs } from "@radix-ui/themes";
-import { DemoAccordion } from "./DemoAccordion";
 import { DemoBasic } from "./DemoBasic";
-import { DemoModal } from "./DemoModal";
+import { DemoObserver } from "./DemoObserver";
 import { relations } from "./relations";
 
-export default function UseToggleDemoPage() {
+export default function UseFocusableElementsDemoPage() {
   return (
     <Box>
       <DemoHeader
-        title="useToggle"
-        description="불린 상태를 쉽게 토글할 수 있는 훅입니다. 모달, 드롭다운, 아코디언 등 열기/닫기 상태 관리에 유용합니다."
+        title="useFocusableElements"
+        description="컨테이너 내의 포커스 가능한 요소들을 자동으로 찾고 추적하는 훅입니다. MutationObserver를 사용하여 DOM 변화를 실시간으로 감지할 수 있습니다."
       />
 
       <DemoRelationList relations={relations} />
@@ -19,19 +18,15 @@ export default function UseToggleDemoPage() {
       <Tabs.Root defaultValue="basic" mt="2">
         <Tabs.List>
           <Tabs.Trigger value="basic">기본 사용법</Tabs.Trigger>
-          <Tabs.Trigger value="modal">모달 제어</Tabs.Trigger>
-          <Tabs.Trigger value="accordion">아코디언</Tabs.Trigger>
+          <Tabs.Trigger value="observer">DOM 변화 감지</Tabs.Trigger>
         </Tabs.List>
 
         <Box mt="2">
           <Tabs.Content value="basic">
             <DemoBasic />
           </Tabs.Content>
-          <Tabs.Content value="modal">
-            <DemoModal />
-          </Tabs.Content>
-          <Tabs.Content value="accordion">
-            <DemoAccordion />
+          <Tabs.Content value="observer">
+            <DemoObserver />
           </Tabs.Content>
         </Box>
       </Tabs.Root>

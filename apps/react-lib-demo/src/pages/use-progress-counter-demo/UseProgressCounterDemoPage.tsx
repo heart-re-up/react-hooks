@@ -1,5 +1,5 @@
-import DemoHeader from "@/components/components/DemoHeader";
-import DemoRelationList from "@/components/components/DemoRelationList";
+import DemoHeader from "@/components/DemoHeader";
+import DemoRelationList from "@/components/DemoRelationList";
 import { ProgressCounterAsyncContextProvider } from "@heart-re-up/react-lib/contexts/progress-counter-async";
 import { Box, Tabs } from "@radix-ui/themes";
 import DemoAsyncJobs from "./DemoAsyncJobs";

@@ -1,4 +1,4 @@
-import { DemoRelationProps } from "@/components/components/DemoRelation";
+import { DemoRelationProps } from "@/components/DemoRelation";
 
 export const relations: DemoRelationProps[] = [
   {

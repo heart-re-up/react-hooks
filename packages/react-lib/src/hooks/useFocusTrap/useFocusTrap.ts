@@ -1,14 +1,16 @@
-import { RefObject, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useFocus, UseFocusReturn } from "../useFocus";
 import {
   useFocusableElements,
   UseFocusableElementsReturn,
 } from "../useFocusableElements";
+import { useForkRef } from "../useForkRef";
 
 export type UseFocusTrapProps = {
+  /** 비활성 */
   disabled?: boolean;
+  /** 포커스 사용이 가능할 때 자동으로 포커스 처리 */
   autoFocus?: boolean;
-  containerRef: RefObject<HTMLElement | null>;
 };
 
 export type UseFocusTrapReturn = UseFocusReturn & UseFocusableElementsReturn;
@@ -16,15 +18,29 @@ export type UseFocusTrapReturn = UseFocusReturn & UseFocusableElementsReturn;
 export const useFocusTrap = (
   options: UseFocusTrapProps
 ): UseFocusTrapReturn => {
-  const { disabled = false, autoFocus = true, containerRef } = options;
+  console.log("useFocusTrap", "useFocusTrap");
+  const { disabled = false, autoFocus = true } = options;
+  const containerRef = useRef<HTMLElement>(null);
 
   // useFocusableElements 훅 사용
   // 포커스 할 요소만 필터링
-  const { focusableElements } = useFocusableElements({
-    containerRef,
-    observeChange: !disabled, // disabled가 false일 때 true로 설정
-    debounceObserving: 200,
-  });
+  const { ref: focusableElementsRef, focusableElements } = useFocusableElements(
+    {
+      observeChange: !disabled, // disabled가 false일 때 true로 설정
+      debounceObserving: 200,
+    }
+  );
+
+  // ref 콜백을 useCallback으로 메모이제이션하여 무한 리렌더링 방지
+  const refCallback: React.RefCallback<HTMLElement> = (
+    instance: HTMLElement
+  ) => {
+    console.log("useFocusTrap", "useForkRef");
+    containerRef.current = instance;
+  };
+
+  // useFocusableElements 의 ref 호출이 보장되도록 병합해서 내보낸다.
+  const ref = useForkRef(focusableElementsRef, refCallback);
 
   // useFocus 훅 사용
   // 요소를 제공해서 포커스 명령을 사용할 수 있도록 한다.
@@ -64,24 +80,34 @@ export const useFocusTrap = (
         focusNext();
       }
     },
-    [focusableElements.length, focusNext, focusPrev, containerRef]
+    [focusableElements.length, focusNext, focusPrev]
   );
 
-  // 키보드 이벤트 처리
-  useEffect(() => {
+  const cleanupKeydown = useCallback(() => {
+    if (containerRef.current) {
+      containerRef.current.removeEventListener("keydown", handleKeyDown, {
+        capture: false,
+      });
+    }
+  }, [handleKeyDown]);
+
+  const setupKeydown = useCallback(() => {
+    cleanupKeydown();
+    // 사용할 수 없는 경우 설정하지 않음.
     if (disabled || !containerRef.current) return;
-    const container = containerRef.current;
-    container.addEventListener("keydown", handleKeyDown, {
+    // 키다운 설정
+    containerRef.current.addEventListener("keydown", handleKeyDown, {
       capture: false,
       passive: false,
     });
-    // 정리
-    return () => {
-      container.removeEventListener("keydown", handleKeyDown, {
-        capture: false,
-      });
-    };
-  }, [disabled, containerRef, handleKeyDown]);
+  }, [disabled, handleKeyDown, cleanupKeydown]);
+
+  // 키보드 이벤트 처리
+  // useEffect(() => {
+  //   console.log("useFocusTrap", "useEffect");
+  //   setupKeydown();
+  //   return cleanupKeydown;
+  // }, [cleanupKeydown, setupKeydown]);
 
   // 자동 포커스 처리
   useEffect(() => {
@@ -90,9 +116,10 @@ export const useFocusTrap = (
     requestAnimationFrame(() => {
       focusFirst();
     });
-  }, [disabled, autoFocus, containerRef, focusFirst]);
+  }, [disabled, autoFocus, focusFirst]);
 
   return {
+    ref,
     focusableElements,
     focusIndex,
     focusFirst,

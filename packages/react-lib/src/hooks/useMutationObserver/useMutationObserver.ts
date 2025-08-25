@@ -1,11 +1,6 @@
-import { RefObject, useCallback, useEffect, useRef } from "react";
-import { useDebounce } from "../useDebounce";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export type UseMutationObserverProps = {
-  /**
-   * 관찰할 요소의 ref
-   */
-  targetRef: RefObject<Element | null>;
   /**
    * MutationObserver 콜백 함수
    */
@@ -14,18 +9,10 @@ export type UseMutationObserverProps = {
    * MutationObserver 옵션
    */
   options?: MutationObserverInit;
-  /**
-   * 훅 비활성화 여부
-   */
-  disabled?: boolean;
-  /**
-   * 디바운스 딜레이 (ms)
-   * 실시간 데이터 업데이트가 빈번한 경우 성능 최적화에 유용
-   */
-  debounceDelay?: number;
 };
 
 export type UseMutationObserverReturns = {
+  ref: React.RefCallback<HTMLElement>;
   disconnect: () => void;
 };
 
@@ -34,76 +21,71 @@ export type UseMutationObserverReturns = {
  * 각 요소마다 개별 Observer를 생성하여 독립적인 옵션 사용 가능
  */
 export const useMutationObserver = ({
-  targetRef,
   callback,
   options = {
     childList: true,
     subtree: true,
   },
-  disabled = false,
-  debounceDelay = 0,
 }: UseMutationObserverProps): UseMutationObserverReturns => {
-  const observerRef = useRef<MutationObserver | null>(null);
+  // RefCallback 에 의해서 설정되는 요소
+  const elementRef = useRef<Element>(null);
+  // MutationObserver 인스턴스
+  const observerRef = useRef<MutationObserver>(null);
+  // 콜백 참조 안정화
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+  // options 객체 메모이제이션. 매개변수 객체를 그대로 다른 의존성에 사용하면, 매번 새 객체로 인식하여 메모이제이션이 되지 않는다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedOptions = useMemo(() => options, [...Object.values(options)]); // 의도된 eslint 무시.
 
-  // 내부 핸들러 (useCallback으로 메모이제이션)
-  const handleMutation: MutationCallback = useCallback(
-    (mutations, observer) => {
-      callback(mutations, observer);
-    },
-    [callback]
-  );
-
-  // useDebounce 훅 사용
-  const debouncedCallback = useDebounce(handleMutation, debounceDelay);
-
-  useEffect(() => {
-    if (disabled || !targetRef.current) return;
-
-    const target = targetRef.current;
-
-    // 디바운스 여부에 따라 콜백 선택
-    const finalCallback =
-      debounceDelay > 0 ? debouncedCallback : handleMutation;
-
-    // MutationObserver 생성
-    observerRef.current = new MutationObserver(finalCallback);
-
-    // 관찰 시작
-    observerRef.current.observe(target, options);
-
-    // 정리
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-        observerRef.current = null;
-      }
-
-      // useDebounce의 clear 메서드 호출
-      if (debounceDelay > 0) {
-        debouncedCallback.clear();
-      }
-    };
-  }, [
-    targetRef,
-    options,
-    disabled,
-    debounceDelay,
-    debouncedCallback,
-    handleMutation,
-  ]);
-
-  // 수동으로 관찰 중단하는 함수
-  const disconnect = () => {
+  /**
+   * MutationObserver 정리
+   */
+  const cleanupObserver = useCallback(() => {
     if (observerRef.current) {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
+  }, []);
 
-    // useDebounce의 clear 메서드 호출
-    if (debounceDelay > 0) {
-      debouncedCallback.clear();
+  // MO 설정
+  const setupObserver = useCallback(() => {
+    // 다음 경우 아무것도 하지 않는다.
+    // 비활성 상태, ref가 null
+    if (elementRef.current === null) {
+      return;
     }
-  };
 
-  return { disconnect };
+    // MutationObserver 생성 및 관찰
+    observerRef.current = new MutationObserver((mutations, observer) => {
+      callbackRef.current(mutations, observer);
+    });
+    observerRef.current.observe(elementRef.current, memoizedOptions);
+  }, [memoizedOptions]);
+
+  // 요소 설정(변경) 시 관찰 시작
+  const ref = useCallback(
+    (instance: HTMLElement) => {
+      // null 은 처리하지 않는다.
+      if (instance === null) {
+        return;
+      }
+      // 변경된 것이 없으면 아무것도 하지 않는다.
+      if (elementRef.current === instance) {
+        return;
+      }
+      // 변경처리하고 관찰 시작을 시도한다.
+      elementRef.current = instance;
+      cleanupObserver();
+      setupObserver();
+    },
+    [cleanupObserver, setupObserver]
+  );
+
+  useEffect(() => {
+    setupObserver();
+    return cleanupObserver;
+  }, [setupObserver, cleanupObserver]);
+
+  return { ref, disconnect: cleanupObserver };
 };

@@ -8,7 +8,7 @@ import { setRef } from "./setRef";
  */
 export const useForkRef = <Instance>(
   ...refs: Array<Ref<Instance> | undefined>
-): RefCallback<Instance> | null => {
+): RefCallback<Instance> => {
   return (value: Instance) => {
     refs.forEach((ref, index) => {
       if (ref === undefined || ref === null) {

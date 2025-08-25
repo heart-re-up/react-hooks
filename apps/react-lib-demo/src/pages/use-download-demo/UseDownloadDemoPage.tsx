@@ -1,5 +1,5 @@
-import DemoHeader from "@/components/components/DemoHeader";
-import DemoRelationList from "@/components/components/DemoRelationList";
+import DemoHeader from "@/components/DemoHeader";
+import DemoRelationList from "@/components/DemoRelationList";
 import { Box, Tabs } from "@radix-ui/themes";
 import DemoText from "./DemoText";
 import DemoImage from "./DemoImage";

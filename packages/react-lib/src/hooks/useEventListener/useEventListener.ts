@@ -29,9 +29,35 @@ export type StandardEventName =
   // Shadow DOM
   | keyof ShadowRootEventMap;
 
-export const useEventListener = <T extends EventTarget = EventTarget>(
-  eventName: StandardEventName | (string & {}), // 표준 이벤트 + 커스텀 이벤트 모두 지원
-  handler: (event: Event) => void,
+// 이벤트 이름을 기반으로 이벤트 타입을 추론하는 유틸리티 타입
+// 가장 구체적인 타입부터 확인하여 첫 번째 매치를 반환
+type InferEventType<E extends string> =
+  // 키보드 이벤트들 (가장 구체적)
+  E extends keyof HTMLElementEventMap
+    ? HTMLElementEventMap[E]
+    : // Window 전용 이벤트들
+      E extends keyof WindowEventMap
+      ? WindowEventMap[E]
+      : // Document 전용 이벤트들
+        E extends keyof DocumentEventMap
+        ? DocumentEventMap[E]
+        : // 글로벌 이벤트 핸들러들
+          E extends keyof GlobalEventHandlersEventMap
+          ? GlobalEventHandlersEventMap[E]
+          : // 기타 이벤트 맵들
+            E extends keyof ElementEventMap
+            ? ElementEventMap[E]
+            : E extends keyof SVGElementEventMap
+              ? SVGElementEventMap[E]
+              : // 기본값
+                Event;
+
+export const useEventListener = <
+  T extends EventTarget = EventTarget,
+  E extends string = string,
+>(
+  eventName: E, // 이벤트 이름을 제네릭으로 받아서 타입 추론 가능
+  handler: (event: InferEventType<E>) => void, // 추론된 이벤트 타입 사용
   element?: ElementTarget<T>,
   options?: boolean | AddEventListenerOptions
 ): void => {
@@ -63,12 +89,13 @@ export const useEventListener = <T extends EventTarget = EventTarget>(
     }
 
     // 이벤트 리스너 등록
-    const eventListener = (event: Event) => savedHandler.current(event);
+    const eventListener = (event: Event): void =>
+      savedHandler.current(event as InferEventType<E>);
 
     targetElement.addEventListener(eventName, eventListener, options);
 
     // 정리 시 이벤트 리스너 제거
-    return () => {
+    return (): void => {
       targetElement!.removeEventListener(eventName, eventListener);
     };
   }, [eventName, element, options]);

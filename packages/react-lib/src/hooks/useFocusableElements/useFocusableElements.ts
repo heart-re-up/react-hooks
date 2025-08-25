@@ -1,23 +1,21 @@
-import { RefObject, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDebounce } from "../useDebounce";
 import { getFocusableElements } from "../useFocusTrap/useFocusTrap.util";
+import { useForkRef } from "../useForkRef";
 import { useMutationObserver } from "../useMutationObserver";
 
 export type UseFocusableElementsProps = {
   /**
-   * 포커스 가능한 요소를 찾을 컨테이너 요소 ref
-   */
-  containerRef: RefObject<HTMLElement | null>;
-  /**
-   * 포커스 가능한 요소 변경 감지 여부
-   */
-  observeChange?: boolean;
-  /**
    * MutationObserver 디바운스 지연 시간 (ms)
    */
-  debounceObserving?: number;
+  debounceDelay?: number;
 };
 
 export type UseFocusableElementsReturn = {
+  /**
+   * 포커스 가능한 요소를 찾을 컨테이너 요소에 설정할 ref
+   */
+  ref: React.RefCallback<HTMLElement>;
   /**
    * 현재 포커스 가능한 요소들
    */
@@ -27,72 +25,72 @@ export type UseFocusableElementsReturn = {
 export const useFocusableElements = (
   options: UseFocusableElementsProps
 ): UseFocusableElementsReturn => {
-  const {
-    containerRef,
-    observeChange = false,
-    debounceObserving: debounceDelay = 200,
-  } = options;
+  const { debounceDelay = 166 } = options;
   const [focusableElements, setFocusableElements] = useState<HTMLElement[]>([]);
+  /** 포커스 가능한 요소를 획득하려는 컨테이너 */
+  const containerRef = useRef<HTMLElement>(null);
+
+  const clearFocusableElements = useCallback(() => {
+    setFocusableElements([]);
+  }, [setFocusableElements]);
 
   // 포커스 가능한 요소들을 업데이트하는 함수
   const updateFocusableElements = useCallback(() => {
-    console.log("updateFocusableElements called");
-
     if (!containerRef.current) {
-      setFocusableElements([]);
+      clearFocusableElements();
       return;
     }
-
     const elements = getFocusableElements(containerRef.current);
-    console.log("Found focusable elements:", elements.length);
     setFocusableElements(elements);
-  }, [containerRef]);
+  }, [clearFocusableElements, setFocusableElements]);
 
-  // MutationObserver 콜백
-  const handleMutation = useCallback(
-    (mutations: MutationRecord[]) => {
-      console.log(
-        "Mutations detected:",
-        mutations.map((m) => ({
-          type: m.type,
-          target: m.target,
-          attributeName: m.attributeName,
-          addedNodes: m.addedNodes.length,
-          removedNodes: m.removedNodes.length,
-        }))
-      );
-
-      updateFocusableElements();
-    },
-    [updateFocusableElements]
+  const debouncedUpdateFocusableElements = useDebounce(
+    updateFocusableElements,
+    debounceDelay
   );
 
   // MutationObserver로 DOM 변경 감지
-  useMutationObserver({
-    targetRef: containerRef,
-    callback: handleMutation,
+  const { ref: mutationRef } = useMutationObserver({
+    callback: (_mutations: MutationRecord[]) => {
+      debouncedUpdateFocusableElements();
+    },
     options: {
       childList: true,
       subtree: true,
-      attributes: false, // 임시로 속성 변경 감지 비활성화
+      attributes: true, // 속성 변경 감지 활성화
+      attributeFilter: [
+        "disabled",
+        "tabindex",
+        "hidden",
+        "aria-hidden",
+        "aria-disabled",
+      ], // 포커스에 실제 영향을 주는 속성만 감지
     },
-    disabled: !observeChange,
-    debounceDelay,
   });
 
-  // 최초에 초기 포커스 가능한 요소들 설정 - observeChange와 관계없이 실행
-  useEffect(() => {
-    if (!containerRef.current) return;
-    updateFocusableElements();
-  }, [containerRef, updateFocusableElements]);
+  // useMutationObserver 의 ref 호출이 보장되도록 병합해서 내보낸다.
+  const ref = useForkRef(mutationRef, (instance: HTMLElement | null) => {
+    // 이미 같은 요소를 참조하고 있으면 아무것도 하지 않는다.
+    // 이미 null 인 경우에 null 이 전달되는 경우도 이 경우에 해당합니다.
+    if (containerRef.current === instance) {
+      return;
+    }
 
-  // observeChange가 활성화된 경우에만 변화 감지를 위한 추가 호출
-  useEffect(() => {
-    if (!observeChange || !containerRef.current) return;
-    updateFocusableElements();
-  }, [observeChange, containerRef, updateFocusableElements]);
+    // null 수신은 처리하지 않는다. 컴포넌트가 언마운트될 때 정리함수에서 처리된다.
+    if (instance === null) {
+      return;
+    }
 
-  return {
-    focusableElements,
-  };
+    // 변경 사항을 적용하고 업데이트 요청한다.
+    containerRef.current = instance;
+    updateFocusableElements();
+  });
+
+  // 컴포넌트가 언마운트될 때 포커스 가능한 요소들을 초기화한다.
+  useEffect(() => {
+    updateFocusableElements();
+    return clearFocusableElements;
+  }, [clearFocusableElements, updateFocusableElements]);
+
+  return { ref, focusableElements };
 };

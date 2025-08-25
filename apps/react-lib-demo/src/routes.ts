@@ -1,5 +1,5 @@
 import { RouteObject } from "react-router";
-import Layout from "./components/layouts/Layout";
+import Layout from "./layouts/Layout";
 import { menuRoutes } from "./menu";
 
 export const routes: RouteObject[] = [

@@ -96,4 +96,45 @@ export const menuRoutes: MenuRoute[] = [
         (module) => module.default
       ),
   },
+  {
+    id: "focus",
+    path: "/focus",
+    title: "useFocus",
+    description: "포커스 가능한 요소들 사이를 프로그래밍적으로 이동하는 훅",
+    component: async () =>
+      import("@/pages/use-focus-demo/UseFocusDemoPage").then(
+        (module) => module.default
+      ),
+  },
+  {
+    id: "focusable-elements",
+    path: "/focusable-elements",
+    title: "useFocusableElements",
+    description:
+      "컨테이너 내의 포커스 가능한 요소들을 자동으로 찾고 추적하는 훅",
+    component: async () =>
+      import(
+        "@/pages/use-focusable-elements-demo/UseFocusableElementsDemoPage"
+      ).then((module) => module.default),
+  },
+  {
+    id: "focus-trap",
+    path: "/focus-trap",
+    title: "useFocusTrap",
+    description: "특정 컨테이너 내에서 포커스를 가두어 접근성을 향상시키는 훅",
+    component: async () =>
+      import("@/pages/use-focus-trap-demo/UseFocusTrapDemoPage").then(
+        (module) => module.default
+      ),
+  },
+  {
+    id: "mutation-observer",
+    path: "/mutation-observer",
+    title: "useMutationObserver",
+    description: "DOM 요소의 변화를 실시간으로 감지하는 훅",
+    component: async () =>
+      import(
+        "@/pages/use-mutation-observer-demo/UseMutationObserverDemoPage"
+      ).then((module) => module.default),
+  },
 ] as const;

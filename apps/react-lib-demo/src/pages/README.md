@@ -49,8 +49,8 @@ src/pages/use-[hook-name]-demo/
 다음은 데모 페이지 구현의 예제이다.
 
 ```tsx
-import DemoHeader from "@/components/components/DemoHeader";
-import DemoRelationList from "@/components/components/DemoRelationList";
+import DemoHeader from "@/components/DemoHeader";
+import DemoRelationList from "@/components/DemoRelationList";
 import { Box, Tabs } from "@radix-ui/themes";
 import { DemoApiCall } from "./DemoApiCall";
 import { DemoBasic } from "./DemoBasic";
@@ -113,7 +113,7 @@ export default function UseDebounceDemoPage() {
 다음은 관련 항목 구성의 예제이다.
 
 ```ts
-import { DemoRelationProps } from "@/components/components/DemoRelation";
+import { DemoRelationProps } from "@/components/DemoRelation";
 
 export const relations: DemoRelationProps[] = [
   {
@@ -164,3 +164,13 @@ export const relations: DemoRelationProps[] = [
 2. **색상 구분**: 각 상태나 기능별로 구분되는 색상 사용
 3. **반응형 디자인**: 모바일과 데스크톱에서 모두 잘 보이도록 구성
 4. **접근성 고려**: 적절한 대비와 포커스 상태 제공
+
+## Demo 작성시 Radix-ui/themes 이용 가이드
+
+### Flex 박스가 필요한 경우 `Flex` 컴포넌트를 이용한다.
+
+```tsx
+<Flex flexGrow="1">
+  <>...</>
+</Flex>
+```

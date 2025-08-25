@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useMemo } from "react";
 
 export interface Cancelable {
   clear(): void;
@@ -39,29 +39,30 @@ export const useDebounce = <T extends (...args: never[]) => unknown>(
   actionRef.current = action;
   delayRef.current = delayInMillis;
 
+  // 디바운스된 함수 - 의존성 배열이 비어있으므로 재생성되지 않음
   const debounced = useCallback(
     (...args: Parameters<T>) => {
       if (timeout.current) {
         clearTimeout(timeout.current);
       }
-
-      // 새로운 타이머 시작 - ref를 통해 최신 값들 사용
       timeout.current = setTimeout(() => {
         actionRef.current(...args);
       }, delayRef.current);
     },
-    [] // 의존성 배열을 비워서 함수가 재생성되지 않도록 함
+    [] // 빈 배열로 함수 재생성 방지
   );
 
-  // 타입 단언을 통해 T & Cancelable로 변환
-  const result = debounced as unknown as T & Cancelable;
-
-  result.clear = useCallback(() => {
+  const clear = useCallback(() => {
     if (timeout.current) {
       clearTimeout(timeout.current);
       timeout.current = null;
     }
   }, []);
 
-  return result;
+  // useMemo로 객체 재생성 방지
+  return useMemo(() => {
+    const result = debounced as unknown as T & Cancelable;
+    result.clear = clear;
+    return result;
+  }, [debounced, clear]);
 };
